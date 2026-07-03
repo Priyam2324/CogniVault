@@ -43,34 +43,8 @@ what the assistant knows about you.
 ## Architecture overview
 
 
-    ┌─────────────────────────────────────────────────────────────┐
-    │  FRONTEND (index.html)                                      │
-    │  - Sidebar: chat list, rename, delete, new chat              │
-    │  - Chat window: message history, attachment cards, greeting  │
-    │  - Talks to backend over plain REST, no client-side state    │
-    │    beyond "which chat am I looking at right now"              │
-    └───────────────────────────┬───────────────────────────────────┘
-                                 │ HTTP (JSON + multipart)
-    ┌───────────────────────────▼───────────────────────────────────┐
-    │  BACKEND (FastAPI, main.py)                                  │
-    │                                                                │
-    │  ┌──────────────┐   ┌───────────────────┐   ┌──────────────┐ │
-    │  │ SQLite         │   │ Extraction layer  │   │ Groq (LLM)   │ │
-    │  │ (chats.db)     │   │ pdfplumber        │   │ Llama 4      │ │
-    │  │ - chat list    │   │ pytesseract       │   │ Scout        │ │
-    │  │ - message log  │   │ python-docx       │   │              │ │
-    │  │ - file refs    │   │                   │   │              │ │
-    │  └──────────────┘   └─────────┬─────────┘   └──────┬───────┘ │
-    │                                │                      │        │
-    │                                ▼                      │        │
-    │                     ┌────────────────────┐            │        │
-    │                     │      COGNEE         │◄───────────┘        │
-    │                     │  long-term memory   │                    │
-    │                     │  (graph + vector)   │                    │
-    │                     └────────────────────┘                    │
-    └─────────────────────────────────────────────────────────────┘
+<img width="2720" height="1856" alt="cognivault_architecture" src="https://github.com/user-attachments/assets/14dea8f1-0cbd-4050-a8a1-2a628fdc57f1" />
 
-------------------------------------------------------------------------
 
 ## The two databases, and why one isn't enough
 
