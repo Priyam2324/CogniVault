@@ -1,4 +1,4 @@
-# Cognivault
+# COGNIVAULT
 
 **A local-first AI assistant that reads your PDFs, images, and Word docs, and remembers them — across every conversation you have with it, forever.**
 
@@ -6,13 +6,13 @@ Upload a document in one chat, ask about it in a completely different chat weeks
 
 ---
 
-## Why this name
+## WHY COGNIVAULT?
 
 Cognee (the memory engine underneath) turns raw conversations and documents into a structured, searchable knowledge store — that's the "cogni-" part. Everything lives on disk, under your control, with no cloud memory store — that's the "vault" part. Cognivault: a vault for what the assistant knows about you.
 
 ---
 
-## What it actually does
+## CORE CAPABILITIES
 
 - You upload a PDF, a photo of handwritten notes, or a `.docx`, in any chat.
 - The backend extracts the text (OCR for images and scanned PDF pages, direct text extraction for text-based PDFs and Word docs), summarizes it, and answers whatever you asked about it.
@@ -22,13 +22,13 @@ Cognee (the memory engine underneath) turns raw conversations and documents into
 
 ---
 
-## Architecture overview
+## SYSTEM ARCHITECTURE
 
 <img width="2720" height="1856" alt="cognivault_architecture" src="https://github.com/user-attachments/assets/14dea8f1-0cbd-4050-a8a1-2a628fdc57f1" />
 
 ---
 
-## The two databases, and why one isn't enough
+## DUAL-DATABASE STORAGE DESIGN
 
 Cognivault deliberately keeps two separate storage systems, doing two different jobs. This split is the core design decision the whole project is built around.
 
@@ -54,11 +54,11 @@ Together: SQLite reconstructs exactly what was said and when, inside any one con
 
 ---
 
-## How Cognee's hybrid search actually works
+## UNDER THE HOOD: HYBRID SEARCH MECHANICS
 
 Cognee isn't a single database — it's a memory engine built on top of two complementary retrieval systems working together on every query: a **vector store** and a **graph store**. Understanding what each one contributes is the key to understanding why recall in Cognivault behaves the way it does.
 
-### The vector database — finds things that *mean* the same, even in different words
+### THE VECTOR DATABASE: SEMANTIC SIMILARITY SEARCH
 
 Cognee's default vector store is **LanceDB**. When something gets remembered — a chat exchange, a chunk of an uploaded document — Cognee turns it into an embedding (a numeric fingerprint of its meaning) and stores that alongside the text. When you ask a question, your question is embedded the same way, and the vector store returns whichever stored memories are numerically closest to it — i.e., closest in *meaning*, not in exact wording.
 
@@ -66,7 +66,7 @@ This is what makes recall resilient to phrasing. Ask "what's my preferred way to
 
 It's also *exactly* how Cognivault avoids the classic failure mode of naive keyword-matching memory: pulling in your coffee order when you asked about meetings, just because both memories happen to be phrased as "I prefer X." Embeddings don't confuse the two — "async standups" and "flat white" aren't semantically close, even though the sentences describing them share common words like "my" and "usual."
 
-### The graph database — finds things that are *connected*, even if they don't sound alike
+### THE GRAPH DATABASE: RELATION-BASED ENTITY CONNECTIVITY
 
 Cognee's default graph store is **Kuzu**. As part of ingesting text, Cognee also extracts entities (people, organizations, documents, concepts) and the relationships between them, and stores that as a graph of nodes and edges. This captures structure that pure semantic similarity can miss entirely.
 
@@ -82,7 +82,7 @@ Now, in a new chat, you ask: **"Have we had any delivery problems with our vendo
 
 The result is a fuller, correctly-grounded answer: not just "yes, here's a late invoice," but "yes — and here's the contract with the vendor responsible," something a vector-only system would likely have missed and a graph-only system would never have found in the first place, since the graph alone has no way to start from a fuzzy natural-language question like "delivery problems."
 
-### Putting it together: Extract → Cognify → Load
+### THE ETL PIPELINE: EXTRACT, COGNIFY, LOAD
 
 Under the hood, Cognee processes everything it's given through a three-stage pipeline:
 
@@ -92,15 +92,15 @@ Under the hood, Cognee processes everything it's given through a three-stage pip
 
 When you ask a question, Cognee's retrieval draws on both layers in the same pass — vector similarity casts a wide net for anything that reads as relevant, and the graph supplies the explicit connections between entities that similarity alone can't see. That combination is what "hybrid retrieval" means in practice here, and it's the reason Cognivault can answer questions that span multiple documents uploaded in unrelated chats, weeks apart, without you ever having to tell it those documents were related.
 
-### Why this also makes memory reusable beyond just this chatbot
+### EXTERNAL MEMORY INTEROPERABILITY
 
 Because both layers are addressed through a plain `cognee.recall(query, session_id=user_id)` / `cognee.remember(...)` interface, and everything runs on embedded, file-based stores (`DB_PROVIDER=sqlite` for Cognee's own internal bookkeeping, `VECTOR_DB_PROVIDER=lancedb`, `GRAPH_DATABASE_PROVIDER=kuzu`, with local embeddings via `fastembed` — nothing computed over an external API), the same memory space isn't locked to this one chatbot. A second, entirely different tool — a research agent, a CLI note-taker, a scheduled summarizer — can attach to the same `COGNEE_DIR` and read or write the same knowledge graph and vector index. Cognivault's chatbot is one client of that memory, not the memory's owner.
 
 ---
 
-## Hurdles, and the architectural decisions that fixed them
+## ENGINEERING CHALLENGES & RESOLUTIONS
 
-### Hurdle 1 — Unrelated personal facts bleeding into answers
+### CHALLENGE 1: PREVENTING UNRELATED FACTS FROM BLEEDING INTO RESPONSES
 
 **Setup:** Recall the Monday/Wednesday example above — a meeting-format preference in one chat, a coffee order in a completely unrelated chat.
 
@@ -108,7 +108,7 @@ Because both layers are addressed through a plain `cognee.recall(query, session_
 
 **Fix:** Stopped hand-rolling relevance with word counting. Cognee's vector similarity search already ranks results by actual semantic closeness, which doesn't confuse two memories just because they share sentence structure. The score Cognee returns is what gets thresholded, and the model is explicitly told to use only what's genuinely relevant to the current question and ignore the rest of what comes back.
 
-### Hurdle 2 — Broad questions ("what do you know about me?") came back thin
+### CHALLENGE 2: ENHANCING RESPONSE DEPTH FOR BROAD QUERIES
 
 **Symptom:** Specific questions worked reliably; broad, low-specificity ones sometimes returned too little to give a real answer.
 
@@ -116,7 +116,7 @@ Because both layers are addressed through a plain `cognee.recall(query, session_
 
 **Fix:** Raised the retrieval count and let the model synthesize a coherent summary from whatever comes back, instead of maintaining a separate "summary mode" code path with its own memory-selection rules.
 
-### Hurdle 3 — The bot re-greeted the user mid-conversation
+### CHALLENGE 3: RESOLVING MID-CONVERSATION RE-GREETINGS
 
 **Symptom:** A cheerful reintroduction showing up out of nowhere, several messages into an already-ongoing chat.
 
@@ -124,7 +124,7 @@ Because both layers are addressed through a plain `cognee.recall(query, session_
 
 **Fix:** Chat history is now pulled from SQLite and passed as real prior turns on every request, alongside a flag the prompt uses to decide whether a greeting is even appropriate. Continuity turned out to require actual conversation state, not a stronger instruction to not repeat itself.
 
-### Hurdle 4 — Ambiguous follow-up questions missed the right memory
+### CHALLENGE 4: CONTEXTUALIZING AMBIGUOUS FOLLOW-UP QUESTIONS
 
 **Setup:** Continuing the Q3 budget report example — after asking "what was the biggest line item in the Q3 report," a natural follow-up might just be *"and how does that compare to last quarter's?"*
 
@@ -132,13 +132,13 @@ Because both layers are addressed through a plain `cognee.recall(query, session_
 
 **Fix:** The query used for recall is no longer just the current message in isolation — it's the last few turns of conversation concatenated with the current question. That gives the embedding search real nouns and names to match against (carried over from earlier in the exchange), instead of a bare, ambiguous follow-up with nothing concrete to anchor to.
 
-### Hurdle 5 — Two LLM calls per turn, doubling latency for no real benefit
+### CHALLENGE 5: REDUCING LATENCY BY COLLAPSING MULTIPLE LLM CALLS
 
 **Symptom:** An earlier version ran a separate classification call before every response, just to decide *how* to answer — a full extra network round-trip on every single message.
 
 **Fix:** Collapsed to one call. The model is handed the ranked memory and instructed, in the same prompt that generates the answer, to use what's relevant and ignore what isn't. A dedicated classification pass wasn't adding accuracy — it was adding latency and cost for a decision the model could already make correctly while answering.
 
-### Hurdle 6 — Memory writes failing completely silently
+### CHALLENGE 6: DETECTING AND HANDLING SILENT MEMORY WRITE FAILURES
 
 **Symptom:** No errors, no crashes — memory just occasionally, invisibly, failed to stick.
 
@@ -146,7 +146,7 @@ Because both layers are addressed through a plain `cognee.recall(query, session_
 
 **Fix:** Logging level raised so failures are actually visible, and every memory read/write call is wrapped so an exception degrades gracefully to "answer without that memory" instead of silently losing data or crashing the request.
 
-### Hurdle 7 — A live API credential committed straight into source
+### CHALLENGE 7: SECURING COMMITTED API CREDENTIALS
 
 **Symptom:** An API key hardcoded as a literal fallback value in the code, rather than pulled from the environment.
 
@@ -156,7 +156,7 @@ Because both layers are addressed through a plain `cognee.recall(query, session_
 
 ---
 
-## Why this is worth having
+## KEY ADVANTAGES & VALUE PROPOSITION
 
 The honest pitch isn't "a chatbot that remembers things" — plenty of tools claim that by stuffing your last few messages back into the prompt. The actual value here is narrower and more concrete:
 
