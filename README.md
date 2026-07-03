@@ -1,10 +1,10 @@
 # COGNIVAULT
 
-<span style="color: red;">⚠️ **AI Usage Disclosure:** This repository was created and documented with the assistance of Claude and Gemini.</span>
-
 **A local-first AI assistant that reads your PDFs, images, and Word docs, and remembers them — across every conversation you have with it, forever.**
 
 Upload a document in one chat, ask about it in a completely different chat weeks later, and it answers correctly. Mention an offhand personal preference in passing, and it recalls it only when actually relevant — never as unprompted noise tacked onto an unrelated answer.
+
+<span style="color: red;">⚠️ **AI Usage Disclosure:** This repository was created and documented with the assistance of Claude and Gemini.</span>
 
 ---
 
