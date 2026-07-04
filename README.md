@@ -24,6 +24,26 @@ Cognee (the memory engine underneath) turns raw conversations and documents into
 
 ---
 
+## TECH STACK
+
+CogniVault is built entirely on local-first, lightweight, and robust technologies:
+
+- **Backend Framework:** [FastAPI](https://fastapi.tiangolo.com/) — ASGI Python framework for fast, robust API development.
+- **ASGI Web Server:** [Uvicorn](https://www.uvicorn.org/) — Lightning-fast ASGI server with auto-reload capabilities.
+- **Memory Engine:** [Cognee](https://github.com/cognee-io/cognee) — The cognitive memory engine coordinating the extraction, graphing, and vector indexing of knowledge.
+- **Storage & Databases:**
+  - **SQLite:** Stores verbatim chat transcripts, conversation logs, and file metadata (with WAL mode enabled for concurrent read/write stability).
+  - **LanceDB:** Embedded, serverless vector database used by Cognee to store and query semantic text embeddings locally.
+  - **Kuzu Graph:** Embedded graph database used by Cognee to build and traverse entity-relationship graphs.
+- **LLM Orchestration:** [LiteLLM](https://github.com/BerriAI/litellm) — Provider-agnostic gateway for completion calls, allowing seamless switching between OpenAI, Anthropic, Groq, local models, etc.
+- **Document & Media Parser:**
+  - **pdfplumber:** Extracts text and structured tables from PDF documents.
+  - **python-docx:** Extracts paragraphs and tables from Word documents (`.docx`).
+  - **Pytesseract (OCR):** Wrapper around system Tesseract binary to extract text from images and photos.
+  - **Pillow (PIL):** Handles image loading and processing for OCR.
+- **Frontend:** Single-file HTML5 interface ([index.html](file:///c:/Users/R1NC/Projects/CogniVault/index.html)) with vanilla CSS styling and native JavaScript (fetch API, event handlers, and responsive layout) requiring zero build steps.
+
+---
 ## SYSTEM ARCHITECTURE
 
 <img width="2720" height="1856" alt="cognivault_architecture" src="https://github.com/user-attachments/assets/14dea8f1-0cbd-4050-a8a1-2a628fdc57f1" />
@@ -110,3 +130,24 @@ The honest pitch isn't "a chatbot that remembers things" — plenty of tools cla
 - **It's a memory layer, not just a chatbot.** Because the long-term store is addressed through a plain, generic interface, nothing stops a second, entirely different tool from reading the same memory space. The chatbot here is one client of that memory, not the memory's owner.
 
 That combination — persistent, local, document-aware, and structurally reusable by other tools — is the "nice to have." Most memory-enabled chatbots give you one of those. This one is architected to give you all four at once, mainly by refusing to let the conversation window and the knowledge store be the same thing.
+
+---
+
+## GETTING STARTED
+
+For a complete local installation and setup guide, check out [setup.md](file:///c:/Users/R1NC/Projects/CogniVault/setup.md).
+
+### Quick Commands:
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Configure environment:**
+   Copy `env.example` to `.env` and fill in your API keys and data directories.
+3. **Run the backend:**
+   ```bash
+   python main.py
+   ```
+4. **Open the app:**
+   Open `index.html` directly in your browser.
