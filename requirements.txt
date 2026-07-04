@@ -1,0 +1,19 @@
+# Core web server
+fastapi
+uvicorn[standard]
+python-multipart      # required by FastAPI for Form(...) / File(...) uploads
+
+# Env loading
+python-dotenv
+
+# LLM routing (provider-agnostic completion calls)
+litellm
+
+# Long-term memory / knowledge graph
+cognee
+
+# Document parsing
+pdfplumber            # PDF text + table extraction
+python-docx           # .docx parsing (imported as "docx")
+pytesseract           # OCR wrapper - ALSO requires the Tesseract binary, see setup.md
+Pillow                # image loading (imported as "PIL")

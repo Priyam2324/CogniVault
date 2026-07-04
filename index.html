@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CogniVault - One place to upload, ask, and remember — your AI assistant that never starts from zero.</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: #0a0a0a; color: #e8e8e8; display: flex; height: 100vh; overflow: hidden; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+        #sidebar {
+            width: 260px; background: #111; border-right: 1px solid #222;
+            display: flex; flex-direction: column; padding: 20px 0; z-index: 10;
+        }
+        .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid #222; }
+        .new-chat-btn {
+            width: 100%; padding: 10px; background: #e8b87a; color: #111;
+            border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .chat-list { flex: 1; overflow-y: auto; padding: 10px; list-style: none; }
+        .chat-item {
+            padding: 10px 12px; margin-bottom: 5px; border-radius: 6px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center; color: #aaa; font-size: 14px;
+        }
+        .chat-item:hover, .chat-item.active { background: #222; color: #fff; }
+        .chat-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+        
+        .chat-actions { display: flex; gap: 6px; align-items: center; }
+        
+        .icon-btn { 
+            background: none; 
+            border: none; 
+            color: #666; 
+            cursor: pointer; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            transition: color 0.2s ease; 
+        }
+        
+        .icon-btn:hover { 
+            color: #fff; 
+        }
+        
+        .icon-btn svg {
+            width: 15px;
+            height: 15px;
+            stroke-width: 2;
+        }
+
+        #main-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+        
+        #welcome-screen {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5;
+        }
+        #welcome-screen h1 { font-size: 32px; margin-bottom: 10px; background: linear-gradient(90deg, #c98a93, #e8b87a); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        #welcome-screen p { color: #888; font-size: 15px; }
+
+        #chat-container {
+            flex: 1; padding: 32px 24px; overflow-y: auto; display: flex; flex-direction: column;
+            gap: 24px; max-width: 900px; width: 100%; margin: 0 auto; z-index: 6;
+        }
+
+        .message-row { display: flex; align-items: flex-end; gap: 10px; max-width: 80%; }
+        .message-row.assistant { align-self: flex-start; }
+        .message-row.user { align-self: flex-end; flex-direction: row-reverse; }
+
+        .bubble { padding: 15px 19px; border-radius: 18px; font-size: 15px; background: #222; color: #eee; }
+        .bubble.user { background: #2a2a2a; border-bottom-right-radius: 4px; }
+        .bubble.assistant { border-bottom-left-radius: 4px; }
+        .message-text { line-height: 1.6; }
+        .message-text > *:first-child { margin-top: 0; }
+        .message-text > *:last-child { margin-bottom: 0; }
+        .message-text p { margin: 0 0 10px 0; }
+        .message-text ul, .message-text ol { margin: 0 0 10px 22px; padding: 0; }
+        .message-text li { margin-bottom: 4px; }
+        .message-text li > ul, .message-text li > ol { margin-top: 4px; margin-bottom: 0; }
+        .message-text strong { color: #fff; font-weight: 600; }
+        .message-text em { color: #dcdcdc; }
+        .message-text code { background: rgba(255,255,255,0.08); padding: 2px 5px; border-radius: 4px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.9em; }
+        .message-text pre { background: rgba(0,0,0,0.3); padding: 12px 14px; border-radius: 10px; overflow-x: auto; margin: 0 0 10px 0; }
+        .message-text pre code { background: none; padding: 0; }
+        .message-text a { color: #7fd39a; text-decoration: underline; }
+        .message-text blockquote { border-left: 3px solid #444; margin: 0 0 10px 0; padding-left: 12px; color: #aaa; }
+        .message-text table { border-collapse: collapse; margin: 0 0 10px 0; }
+        .message-text th, .message-text td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+        .message-text h1, .message-text h2, .message-text h3 { margin: 0 0 8px 0; line-height: 1.3; }
+
+        .attachment-card {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px; text-decoration: none; color: #eee; margin-bottom: 12px;
+            transition: all 0.2s ease; width: fit-content; max-width: 100%;
+        }
+        .attachment-card:hover {
+            background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.15); transform: translateY(-1px);
+        }
+        .attachment-card .file-icon {
+            font-size: 20px; background: rgba(0, 0, 0, 0.2); width: 40px; height: 40px;
+            border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .attachment-card .file-info { display: flex; flex-direction: column; overflow: hidden; }
+        .attachment-card .file-name {
+            font-size: 14px; font-weight: 500; color: #ececec; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .attachment-card .file-action { font-size: 12px; color: #7fd39a; margin-top: 2px; font-weight: 500; }
+
+        .thinking-bubble { display: flex; align-items: center; gap: 8px; padding: 15px 19px; background: #222; border-radius: 18px; border-bottom-left-radius: 4px; color: #aaa; font-size: 14px; }
+        .dot-pulse { display: flex; gap: 4px; margin-left: 5px; }
+        .dot-pulse .dot { width: 5px; height: 5px; background: #e8b87a; border-radius: 50%; animation: pulse 1.4s infinite ease-in-out both; }
+        .dot-pulse .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot-pulse .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes pulse { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        footer { padding: 20px; background: #0a0a0a; z-index: 10; border-top: 1px solid #1a1a1a; display: flex; flex-direction: column; align-items: center;}
+        
+        #attachment-preview {
+            display: none; background: #222; padding: 6px 14px; border-radius: 8px; font-size: 13px; color: #7fd39a;
+            margin-bottom: 12px; width: 100%; max-width: 800px; justify-content: space-between; align-items: center; border: 1px solid #333;
+        }
+        #attachment-preview button { background: none; border: none; color: #aaa; cursor: pointer; font-size: 16px; transition: color 0.2s, text-shadow 0.2s;}
+        #attachment-preview button:hover { color: #fff; text-shadow: 0 0 8px rgba(255, 255, 255, 0.7); }
+
+        .input-box {
+            width: 100%; max-width: 800px; display: flex; align-items: center; gap: 10px;
+            background: #1a1a1a; padding: 10px 15px; border-radius: 24px; border: 1px solid #333;
+        }
+        .file-upload-label { cursor: pointer; color: #888; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; transition: 0.2s; font-size: 20px; }
+        .file-upload-label:hover { background: #333; color: #fff; }
+        #file-input { display: none; }
+        
+        input[type="text"] { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; outline: none; }
+        .send-btn { background: #e8b87a; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #111; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <button class="new-chat-btn" onclick="createNewChat()">+ New Chat</button>
+        </div>
+        <ul class="chat-list" id="chat-list"></ul>
+    </div>
+
+    <div id="main-area">
+        <div id="welcome-screen">
+            <h1>CogniVault</h1>
+            <p>One place to upload, ask, and remember — your AI assistant that never starts from zero.</p>
+        </div>
+        <div id="chat-container"></div>
+        <footer>
+            <div id="attachment-preview">
+                <span>📎 <span id="attached-filename"></span></span>
+                <button onclick="clearAttachment()">✕</button>
+            </div>
+            <div class="input-box">
+                <label class="file-upload-label" title="Attach Document">
+                    <input type="file" id="file-input" accept=".pdf,.doc,.docx,image/*" multiple onchange="handleFileSelect(event)">
+                    +
+                </label>
+                <input type="text" id="user-input" placeholder="Message CogniVault..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                <button class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000/api";
+        const USER_ID = localStorage.getItem("cognivault_user_id") || crypto.randomUUID();
+        localStorage.setItem("cognivault_user_id", USER_ID);
+        
+        let currentChatId = null;
+        let loadedChatId = null; // id of the chat whose messages are actually rendered right now
+        let attachedFiles = []; // Changed to array to handle multiple files
+        let activeSwitchId = 0; 
+
+        async function reapIfEmpty(chatId) {
+            if (!chatId) return false;
+            try {
+                const res = await fetch(`${API_URL}/chats/${chatId}/messages`);
+                const msgs = await res.json();
+                if (msgs.length === 0) {
+                    await fetch(`${API_URL}/chats/${chatId}`, { method: "DELETE" });
+                    return true;
+                }
+            } catch (e) { console.error("Error reaping chat:", e); }
+            return false;
+        }
+
+        async function init() {
+            let res = await fetch(`${API_URL}/chats?user_id=${USER_ID}`);
+            let chats = await res.json();
+            
+            if (chats.length > 0) {
+                await reapIfEmpty(chats[0].id);
+            }
+            
+            await createNewChat();
+        }
+
+        async function createNewChat() {
+            const chatListRes = await fetch(`${API_URL}/chats?user_id=${USER_ID}`);
+            const currentChats = await chatListRes.json();
+            if (currentChats.length > 0) {
+                await reapIfEmpty(currentChats[0].id);
+            }
+
+            const res = await fetch(`${API_URL}/chats`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({user_id: USER_ID}) 
+            });
+            const data = await res.json();
+
+            await loadChats();
+            switchChat(data.id);
+        }
+
+        async function switchChat(id, force = false) {
+            // Only skip if this chat is already the one actually rendered on screen.
+            // (currentChatId alone isn't enough to gate on, since it's set optimistically
+            // before the fetch resolves - using it here caused refreshes after upload,
+            // and retries after a failed load, to get silently swallowed.)
+            if (!force && id === currentChatId && id === loadedChatId) return;
+
+            const switchId = ++activeSwitchId; 
+            currentChatId = id;
+            
+            toggleThinking(false);
+            const container = document.getElementById("chat-container");
+            // Show a visible loading state instead of leaving the pane blank while we fetch -
+            // a plain blank pane during a slow/stuck request looked identical to "switching failed".
+            container.innerHTML = `<div style="text-align:center; margin-top:20px; color:#666;">Loading…</div>`;
+            document.getElementById("welcome-screen").style.display = "none";
+            clearAttachment();
+            updateSidebarActiveState(); 
+
+            // fetch() has no built-in timeout - without this, a stalled request (e.g. dev server
+            // mid-restart) just leaves the "Loading…" state up forever with no error shown.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
+            try {
+                const res = await fetch(`${API_URL}/chats/${id}/messages`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error(`Server returned ${res.status}`);
+                const messages = await res.json();
+                
+                if (switchId !== activeSwitchId) return; 
+                
+                container.innerHTML = "";
+                document.getElementById("welcome-screen").style.display = messages.length === 0 ? "flex" : "none";
+                
+                messages.forEach(m => {
+                    appendMessage(m.content, m.role, m.file_url);
+                });
+
+                loadedChatId = id;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (switchId === activeSwitchId) {
+                    const reason = error.name === "AbortError" ? "Request timed out" : "Failed to load messages";
+                    container.innerHTML = `<div style="text-align:center; margin-top:20px; color:#c98a93;">⚠️ ${reason}. Please tap the chat again.</div>`;
+                    // Don't mark this chat as loaded - loadedChatId stays as-is so a second
+                    // click on the same chat actually retries instead of no-op'ing.
+                }
+            }
+        }
+
+        async function loadChats(preloadedChats = null) {
+            let chats = preloadedChats;
+            if (!chats) {
+                const res = await fetch(`${API_URL}/chats?user_id=${USER_ID}`);
+                chats = await res.json();
+            }
+            
+            const list = document.getElementById("chat-list");
+            list.innerHTML = "";
+            
+            chats.forEach(chat => {
+                const li = document.createElement("li");
+                li.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
+                li.dataset.id = chat.id; 
+                li.title = chat.name;
+
+                li.innerHTML = `
+                    <span class="chat-title">${escapeHtml(chat.name)}</span>
+                    <div class="chat-actions">
+                        <button class="icon-btn" data-action="rename" title="Rename Chat">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" data-action="delete" title="Delete Chat">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                // The whole row is clickable now (matches the pointer cursor the CSS already
+                // implies for the row). Previously the click handler only lived on the title
+                // <span>, so clicking the row's padding or near the icons silently did nothing.
+                li.addEventListener('click', () => switchChat(chat.id));
+                li.querySelector('[data-action="rename"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    renameChat(chat.id);
+                });
+                li.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteChat(chat.id);
+                });
+                list.appendChild(li);
+            });
+        }
+
+        function updateSidebarActiveState() {
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.id === currentChatId);
+            });
+        }
+
+        async function renameChat(id) {
+            const newName = prompt("Enter new chat name:");
+            if(!newName) return;
+            await fetch(`${API_URL}/chats/${id}`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({name: newName})
+            });
+            loadChats();
+        }
+
+        async function deleteChat(id) {
+            if(!confirm("Are you sure you want to completely delete this chat?")) return;
+            await fetch(`${API_URL}/chats/${id}`, { method: "DELETE" });
+            
+            if (id === currentChatId) {
+                await init(); 
+            } else {
+                await loadChats();
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str ?? "";
+            return div.innerHTML;
+        }
+
+        function renderMarkdown(text) {
+            if (typeof marked === 'undefined') {
+                // Fallback if the CDN script failed to load: at least preserve line breaks safely.
+                return escapeHtml(text).replace(/\n/g, '<br>');
+            }
+            const raw = marked.parse(text ?? "", { breaks: true });
+            return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+        }
+
+        function appendMessage(text, sender, fileUrl = null) {
+            document.getElementById("welcome-screen").style.display = "none";
+            const container = document.getElementById("chat-container");
+            const row = document.createElement("div");
+            row.className = `message-row ${sender}`;
+            
+            let contentHtml = "";
+            
+            if (fileUrl && sender === "user") {
+                let fileName = "Attached Document";
+                let messageBody = text;
+                
+                if (text.startsWith("Uploaded file: ")) {
+                    fileName = text.replace("Uploaded file: ", "");
+                    messageBody = ""; 
+                } else if (text.includes("Uploaded file: ")) {
+                    const parts = text.split("Uploaded file: ");
+                    messageBody = parts[0].trim();
+                    fileName = parts[1].trim();
+                }
+
+                contentHtml = `
+                    <a href="http://127.0.0.1:8000${fileUrl}" target="_blank" class="attachment-card">
+                        <div class="file-icon">📄</div>
+                        <div class="file-info">
+                            <span class="file-name">${escapeHtml(fileName)}</span>
+                            <span class="file-action">Click to open</span>
+                        </div>
+                    </a>
+                    ${messageBody ? `<div class="message-text">${renderMarkdown(messageBody)}</div>` : ""}
+                `;
+            } else if (fileUrl && sender === "assistant") {
+                contentHtml = `
+                    <div class="message-text">${renderMarkdown(text)}</div>
+                    <a href="http://127.0.0.1:8000${fileUrl}" target="_blank" class="attachment-card" style="margin-top: 12px; margin-bottom: 0;">
+                        <div class="file-icon">📄</div>
+                        <div class="file-info">
+                            <span class="file-name">Generated File</span>
+                            <span class="file-action">Click to open</span>
+                        </div>
+                    </a>
+                `;
+            } else {
+                contentHtml = `<div class="message-text">${renderMarkdown(text)}</div>`;
+            }
+
+            row.innerHTML = `<div class="bubble ${sender}">${contentHtml}</div>`;
+            container.appendChild(row);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function toggleThinking(show) {
+            const container = document.getElementById("chat-container");
+            if (show) {
+                const row = document.createElement("div");
+                row.className = `message-row assistant`;
+                row.id = "thinking-indicator";
+                row.innerHTML = `<div class="thinking-bubble">CogniVault is thinking <div class="dot-pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+                container.appendChild(row);
+                container.scrollTop = container.scrollHeight;
+            } else {
+                const indicator = document.getElementById("thinking-indicator");
+                if (indicator) indicator.remove();
+            }
+        }
+
+        function handleFileSelect(e) {
+            attachedFiles = Array.from(e.target.files);
+            if(attachedFiles.length > 0) {
+                document.getElementById("attachment-preview").style.display = "flex";
+                if (attachedFiles.length === 1) {
+                    document.getElementById("attached-filename").innerText = attachedFiles[0].name;
+                } else {
+                    document.getElementById("attached-filename").innerText = `${attachedFiles.length} files attached`;
+                }
+            }
+        }
+
+        function clearAttachment() {
+            attachedFiles = [];
+            document.getElementById("file-input").value = "";
+            document.getElementById("attachment-preview").style.display = "none";
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("user-input");
+            const text = input.value.trim();
+            
+            if(!text && attachedFiles.length === 0) return;
+            if(!currentChatId) return;
+
+            input.value = "";
+            
+            if(attachedFiles.length > 0) {
+                attachedFiles.forEach(f => {
+                    appendMessage(`Uploading ${f.name}...`, "user");
+                });
+                if (text) appendMessage(text, "user");
+            } else {
+                appendMessage(text, "user");
+            }
+
+            toggleThinking(true);
+
+            try {
+                if (attachedFiles.length > 0) {
+                    const formData = new FormData();
+                    
+                    // Append each file using the expected array key "files"
+                    attachedFiles.forEach(file => {
+                        formData.append("files", file);
+                    });
+                    
+                    formData.append("chat_id", currentChatId);
+                    formData.append("user_id", USER_ID);
+                    formData.append("prompt", text);
+
+                    clearAttachment();
+
+                    const res = await fetch(`${API_URL}/upload`, { method: "POST", body: formData });
+                    if (!res.ok) throw new Error("Upload failed");
+                    await res.json();
+
+                    toggleThinking(false);
+                    await switchChat(currentChatId, true); // force: replace optimistic local messages with real server state
+
+                } else {
+                    const res = await fetch(`${API_URL}/chat`, {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({message: text, chat_id: currentChatId, user_id: USER_ID})
+                    });
+                    const data = await res.json();
+                    
+                    toggleThinking(false);
+                    appendMessage(data.response, "assistant");
+                }
+            } catch (e) {
+                toggleThinking(false);
+                appendMessage(`⚠️ Error: Could not reach the server.`, "assistant");
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
